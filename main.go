@@ -61,50 +61,42 @@ func main() {
 		log.Fatalf("Error creating clientset: %v", err)
 	}
 
-	// Try Services first
+	bestMatch := ""
+	bestScore := -1.0
+
+	// Check Services
 	svcs, err := clientset.CoreV1().Services("").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		log.Fatalf("Error listing services: %v", err)
 	}
 
-	bestSvcMatch := ""
-	bestSvcScore := -1.0
-
 	for _, svc := range svcs.Items {
 		score := getSimilarity(query, strings.ToLower(svc.Name))
-		if score > bestSvcScore && score >= threshold {
-			bestSvcScore = score
-			bestSvcMatch = fmt.Sprintf("%s.%s.svc.%s", svc.Name, svc.Namespace, clusterDomain)
+		if score > bestScore && score >= threshold {
+			bestScore = score
+			bestMatch = fmt.Sprintf("%s.%s.svc.%s", svc.Name, svc.Namespace, clusterDomain)
 		}
 	}
 
-	if bestSvcMatch != "" {
-		fmt.Println(bestSvcMatch)
-		return
-	}
-
-	// If no service found, try Pods
+	// Check Pods
 	pods, err := clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		log.Fatalf("Error listing pods: %v", err)
 	}
 
-	bestPodMatch := ""
-	bestPodScore := -1.0
-
 	for _, pod := range pods.Items {
 		score := getSimilarity(query, strings.ToLower(pod.Name))
-		if score > bestPodScore && score >= podThreshold {
-			bestPodScore = score
+		if score > bestScore && score >= podThreshold {
 			if pod.Status.PodIP != "" {
+				bestScore = score
 				ipDashed := strings.ReplaceAll(pod.Status.PodIP, ".", "-")
-				bestPodMatch = fmt.Sprintf("%s.%s.pod.%s", ipDashed, pod.Namespace, clusterDomain)
+				bestMatch = fmt.Sprintf("%s.%s.pod.%s", ipDashed, pod.Namespace, clusterDomain)
 			}
 		}
 	}
 
-	if bestPodMatch != "" {
-		fmt.Println(bestPodMatch)
+	if bestMatch != "" {
+		fmt.Println(bestMatch)
 		return
 	}
 
