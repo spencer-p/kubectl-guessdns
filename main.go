@@ -36,12 +36,7 @@ func getSimilarity(s1, s2 string) float64 {
 }
 
 func main() {
-	var kubeconfig *string
-	if home := homedir.HomeDir(); home != "" {
-		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-	} else {
-		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-	}
+	kubeconfig := flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
 	flag.Parse()
 
 	args := flag.Args()
@@ -51,7 +46,16 @@ func main() {
 	}
 	query := strings.ToLower(strings.Join(args, "-"))
 
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	var kubeconfigPath string
+	if *kubeconfig != "" {
+		kubeconfigPath = *kubeconfig
+	} else if env := os.Getenv("KUBECONFIG"); env != "" {
+		kubeconfigPath = env
+	} else if home := homedir.HomeDir(); home != "" {
+		kubeconfigPath = filepath.Join(home, ".kube", "config")
+	}
+
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 	if err != nil {
 		log.Fatalf("Error building kubeconfig: %v", err)
 	}
